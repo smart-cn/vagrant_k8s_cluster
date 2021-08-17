@@ -85,6 +85,7 @@ Vagrant.configure("2") do |config|
       if BRIDGE_ENABLE && BRIDGE_ETH.to_s != ''
         n.vm.network "public_network", bridge: BRIDGE_ETH
       end
+      n.vm.synced_folder "scripts/", "/home/vagrant/scripts"
       
       if (OS_IMAGE == "ubuntu") then n.vm.box = UBUNTU_IMAGE; end
       if (OS_IMAGE == "centos") then n.vm.box = CENTOS_IMAGE; end
@@ -108,10 +109,18 @@ Vagrant.configure("2") do |config|
       end
       
       n.vm.provision "shell", inline: <<-SHELL
-        systemctl stop firewalld; systemctl disable firewalld
+        (systemctl stop firewalld && systemctl disable firewalld) || echo "Firewalld was not found, disabling skipped"
         sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config    
         systemctl restart sshd.service
       SHELL
+
+      if (mid == NUMBER_OF_MASTER_NODES+NUMBER_OF_WORKER_NODES+NUMBER_OF_NFS_NODES);
+        n.vm.provision "shell", preserve_order: true, inline: <<-SHELL
+          (apt install -y sshpass mc > /dev/null) || (yum install -y sshpass mc > /dev/null) || (pkg install -y sshpass mc > /dev/null) || (echo "Unsupported OS, can not install required packages, exiting" && exit 255)
+          echo "Finished!!"
+          sshpass -p "vagrant" ssh -o StrictHostKeyChecking=no vagrant@"#{PRIVATE_SUBNET}.#{IP_SHIFT}" "./scripts/all-in-one-provisioner.sh"
+        SHELL
+      end
       
       count += 1
     end
