@@ -114,12 +114,21 @@ Vagrant.configure("2") do |config|
         systemctl restart sshd.service
       SHELL
 
+      if (mid == 1);
+        n.vm.network "forwarded_port", guest: 6443, host: 26443, protocol: "tcp"
+        n.vm.network "forwarded_port", guest: 6443, host: 26443, protocol: "udp"
+      end
+
       if (mid == NUMBER_OF_MASTER_NODES+NUMBER_OF_WORKER_NODES+NUMBER_OF_NFS_NODES);
         n.vm.provision "shell", preserve_order: true, inline: <<-SHELL
           (apt install -y sshpass mc > /dev/null) || (yum install -y sshpass mc > /dev/null) || (pkg install -y sshpass mc > /dev/null) || (echo "Unsupported OS, can not install required packages, exiting" && exit 255)
           echo "Finished!!"
           sshpass -p "vagrant" ssh -o StrictHostKeyChecking=no vagrant@"#{PRIVATE_SUBNET}.#{IP_SHIFT}" "./scripts/all-in-one-provisioner.sh"
         SHELL
+        n.vm.network "forwarded_port", guest: 80, host: 80, protocol: "tcp"
+        n.vm.network "forwarded_port", guest: 80, host: 80, protocol: "udp"
+        n.vm.network "forwarded_port", guest: 443, host: 443, protocol: "tcp"
+        n.vm.network "forwarded_port", guest: 443, host: 443, protocol: "udp"
       end
       
       count += 1
