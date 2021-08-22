@@ -7,13 +7,13 @@ NUMBER_OF_NFS_NODES = 1
 MEMORY_LIMIT_MASTER = 2048
 MEMORY_LIMIT_WORKER = 4096
 MEMORY_LIMIT_NFS = 1024
-OS_IMAGE = "ubuntu"
+OS_IMAGE = "centos"
 BRIDGE_ENABLE = false
 BRIDGE_ETH = "eno1"
 PRIVATE_SUBNET = "172.18.8"
 IP_SHIFT = 10
 UBUNTU_IMAGE = "generic/ubuntu2004"
-CENTOS_IMAGE = "generic/centos7"
+CENTOS_IMAGE = "generic/centos8"
 
 def set_vbox(vb, config, name)
   vb.gui = false
@@ -117,7 +117,7 @@ Vagrant.configure("2") do |config|
         echo "Updating packages"
         (apt update -y; apt upgrade -y) || (yum update -y) || (freebsd-update fetch install; pkg update && pkg upgrade) || (echo "Unsupported OS, can not update packages, exiting" && exit 255)
         echo "Installing required NFS utils"
-        (apt install -y nfs-common mc) || (yum install -y nfs-utils nfs-utils-lib mc) || (pkg install -y mc) || (echo "Unsupported OS, can not install required NFS packages, exiting" && exit 255)
+        (apt install -y nfs-common mc) || (yum install -y nfs-utils mc) || (pkg install -y mc) || (echo "Unsupported OS, can not install required NFS packages, exiting" && exit 255)
       SHELL
 
       if (mid == 1);
