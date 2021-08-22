@@ -109,9 +109,15 @@ Vagrant.configure("2") do |config|
       end
       
       n.vm.provision "shell", inline: <<-SHELL
+        echo "Disabling firewalld"
         (systemctl stop firewalld && systemctl disable firewalld) || echo "Firewalld was not found, disabling skipped"
+        echo "Allowing SSH login with password"
         sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config    
         systemctl restart sshd.service
+        echo "Updating packages"
+        (apt update -y; apt upgrade -y) || (yum update -y) || (freebsd-update fetch install; pkg update && pkg upgrade) || (echo "Unsupported OS, can not update packages, exiting" && exit 255)
+        echo "Installing required NFS utils"
+        (apt install -y nfs-common mc) || (yum install -y nfs-utils nfs-utils-lib mc) || (pkg install -y mc) || (echo "Unsupported OS, can not install required NFS packages, exiting" && exit 255)
       SHELL
 
       if (mid == 1);
@@ -121,8 +127,9 @@ Vagrant.configure("2") do |config|
 
       if (mid == NUMBER_OF_MASTER_NODES+NUMBER_OF_WORKER_NODES+NUMBER_OF_NFS_NODES);
         n.vm.provision "shell", preserve_order: true, inline: <<-SHELL
-          (apt install -y sshpass mc > /dev/null) || (yum install -y sshpass mc > /dev/null) || (pkg install -y sshpass mc > /dev/null) || (echo "Unsupported OS, can not install required packages, exiting" && exit 255)
-          echo "Finished!!"
+          echo "Starting K8s cluster setup"
+          (apt install -y sshpass) || (yum install -y sshpass) || (pkg install -y sshpass) || (echo "Unsupported OS, can not install required packages, exiting" && exit 255)
+          echo "K8s cluster setup finished!!"
           sshpass -p "vagrant" ssh -o StrictHostKeyChecking=no vagrant@"#{PRIVATE_SUBNET}.#{IP_SHIFT}" "./scripts/all-in-one-provisioner.sh"
         SHELL
         n.vm.network "forwarded_port", guest: 80, host: 80, protocol: "tcp"
