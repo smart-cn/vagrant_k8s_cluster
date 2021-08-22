@@ -115,9 +115,9 @@ Vagrant.configure("2") do |config|
         sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config    
         systemctl restart sshd.service
         echo "Updating packages"
-        (apt update -y; apt upgrade -y) || (yum update -y) || (freebsd-update fetch install; pkg update && pkg upgrade) || (echo "Unsupported OS, can not update packages, exiting" && exit 255)
+        (apt update -y; apt upgrade -y) || (yum update -y) || (echo "Unsupported OS, can not update packages, exiting" && exit 255)
         echo "Installing required NFS utils"
-        (apt install -y nfs-common mc) || (yum install -y nfs-utils mc) || (pkg install -y mc) || (echo "Unsupported OS, can not install required NFS packages, exiting" && exit 255)
+        (apt install -y nfs-common mc) || (yum install -y nfs-utils mc) || (echo "Unsupported OS, can not install required NFS packages, exiting" && exit 255)
       SHELL
 
       if (mid == 1);
