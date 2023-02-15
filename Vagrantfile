@@ -12,8 +12,8 @@ BRIDGE_ENABLE = false
 BRIDGE_ETH = "eno1"
 PRIVATE_SUBNET = "172.18.8"
 IP_SHIFT = 10
-UBUNTU_IMAGE = "generic/ubuntu2004"
-CENTOS_IMAGE = "generic/centos8"
+UBUNTU_IMAGE = "generic/ubuntu2204"
+CENTOS_IMAGE = "generic/centos9s"
 
 def set_vbox(vb, config, name)
   vb.gui = false
