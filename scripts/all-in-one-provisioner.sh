@@ -15,7 +15,7 @@ echo "Installing required additional packages"
 echo "Cloning Kubespray"
 git clone https://github.com/kubernetes-sigs/kubespray.git
 cd kubespray
-git checkout $(git describe --tags `git rev-list --tags --max-count=1`) -q
+git checkout release-2.21
 echo "Installing required for Kubespray python packages"
 echo $password | sudo -S pip3 install -r requirements.txt
 export PATH=$PATH:$HOME/.local/bin/
