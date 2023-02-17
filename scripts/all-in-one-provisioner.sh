@@ -40,5 +40,5 @@ kubectl get configmap kube-proxy -n kube-system -o yaml | sed -e "s/strictARP: f
 kubectl apply -f inventory/mycluster/dashboard_admin_account.yaml
 kubectl apply -f inventory/mycluster/dashboard_ingress.yaml
 kubectl apply -f inventory/mycluster/hello_world.yaml
-echo $password | sudo -S wget -qO- https://github.com/derailed/k9s/releases/latest/download/k9s_Linux_x86_64.tar.gz | tar zxvf -  -C /tmp/; echo $password | sudo -S mv /tmp/k9s /usr/local/bin
+echo $password | sudo -S wget -qO- https://github.com/derailed/k9s/releases/latest/download/k9s_Linux_amd64.tar.gz | tar zxvf -  -C /tmp/; echo $password | sudo -S mv /tmp/k9s /usr/local/bin
 echo "Your Kubernetes cluster is sucesfully deployed and ready to use!"
