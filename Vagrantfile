@@ -12,7 +12,7 @@ BRIDGE_ENABLE = false
 BRIDGE_ETH = "eno1"
 PRIVATE_SUBNET = "172.18.8"
 IP_SHIFT = 10
-UBUNTU_IMAGE = "generic/ubuntu2204"
+UBUNTU_IMAGE = "ubuntu/jammy64"
 CENTOS_IMAGE = "generic/centos9s"
 
 def set_vbox(vb, config, name)
@@ -72,6 +72,7 @@ Vagrant.configure("2") do |config|
   config.vm.provider "hyperv"
   config.vm.provider "virtualbox"
   config.vm.provider "libvirt"
+  config.vbguest.auto_update = false if Vagrant.has_plugin?("vagrant-vbguest")
 
   count = IP_SHIFT
   (1..(NUMBER_OF_MASTER_NODES+NUMBER_OF_WORKER_NODES+NUMBER_OF_NFS_NODES)).each do |mid|
@@ -114,6 +115,17 @@ Vagrant.configure("2") do |config|
         echo "Allowing SSH login with password"
         sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config    
         systemctl restart sshd.service
+        echo "Disabling IPV6"
+        echo 'Acquire::ForceIPv4 "true";' | sudo tee /etc/apt/apt.conf.d/99force-ipv4
+        echo "net.ipv6.conf.all.disable_ipv6=1" >> /etc/sysctl.conf
+        echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.conf
+        echo "net.ipv6.conf.lo.disable_ipv6=1" >> /etc/sysctl.conf
+        sysctl -p
+        echo "Detecting best mirror"
+        apt update
+        apt install python3-pip -y
+        pip3 install apt-smart
+        apt-smart --auto-change-mirror
         echo "Updating packages"
         (apt update -y; apt upgrade -y) || (yum update -y) || (echo "Unsupported OS, can not update packages, exiting" && exit 255)
         echo "Installing required NFS utils"
