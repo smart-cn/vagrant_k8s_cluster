@@ -1,3 +1,4 @@
 .DS_Store
 id_rsa.pub
+id_rsa
 .vagrant
