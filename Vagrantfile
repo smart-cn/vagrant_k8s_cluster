@@ -1,156 +1,200 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
 CLUSTER_PREFIX = "k8s"
 CPUS_NUMBER = 4
 CPU_LIMIT = 90
-NUMBER_OF_MASTER_NODES = 1
-NUMBER_OF_WORKER_NODES = 2
-NUMBER_OF_NFS_NODES = 1
+MASTER_NODES = "1"
+WORKER_NODES = "2,3"
+NFS_NODES = "4"
+ETCD_NODES = "1"
+NUMBER_OF_NODES = "4"
+OS_IMAGE = "ubuntu"
 MEMORY_LIMIT_MASTER = 2048
 MEMORY_LIMIT_WORKER = 4096
 MEMORY_LIMIT_NFS = 1536
-OS_IMAGE = "ubuntu"
 BRIDGE_ENABLE = false
 BRIDGE_ETH = "eno1"
-PRIVATE_SUBNET = "172.18.8"
-IP_SHIFT = 10
+START_IP = "172.18.8.10"
+
 UBUNTU_IMAGE = "ubuntu/jammy64"
 CENTOS_IMAGE = "generic/centos9s"
 
-def set_vbox(vb, config, name)
+def compare_numbers(input_str, input_int)
+  numbers = []
+  unless input_str.nil? || input_str.empty?
+    input_str.split(',').each do |part|
+      if part.include?(':')
+        start, last = part.split(':')
+        numbers += (start.to_i..last.to_i).to_a
+      elsif part.include?('-')
+        start, last = part.split('-')
+        numbers += (start.to_i..last.to_i).to_a
+      else
+        numbers << part.to_i
+      end
+    end
+  end
+  numbers.include?(input_int)
+end
+
+def increment_ip(start_ip, step)
+  octets = start_ip.split('.').map(&:to_i)
+  carry = step
+  # loop through the octets in reverse order
+  3.downto(0) do |i|
+    octets[i] += carry
+    carry = octets[i] / 255
+    octets[i] %= 255
+  end
+  # build the new IP address string
+  octets.join('.')
+end
+
+def get_hosttype(count)
+  type=" "
+  if compare_numbers("#{MASTER_NODES}", count)
+    if type == " " 
+      type += " (master"
+    else
+      type += ",master"
+    end
+  end
+  if compare_numbers("#{WORKER_NODES}", count)
+    if type == " "
+      type += " (worker"
+    else
+      type += ",worker"
+    end
+  elsif compare_numbers("#{NFS_NODES}", count)
+    if type == " " 
+      type += " (nfs"
+    else
+      type += ",nfs"
+    end
+  elsif compare_numbers("#{ETCD_NODES}", count)
+    if type == " " 
+      type += " (etcd"
+    else
+      type += ",etcd"
+    end
+  end
+  if type == " " 
+    type = ""
+  else 
+    type += ")"
+  end
+  return type
+end
+
+def get_hostmemory(count)
+  memory = 0
+  if compare_numbers("#{MASTER_NODES}", count)
+    memory += MEMORY_LIMIT_MASTER
+  end
+  if compare_numbers("#{WORKER_NODES}", count)
+    memory += MEMORY_LIMIT_WORKER
+  end
+  if compare_numbers("#{NFS_NODES}", count)
+    memory += MEMORY_LIMIT_NFS
+  end
+  if memory > 0 
+    memory += 250
+  end
+  return memory
+end  
+
+def set_vbox(vb, config, count)
   vb.gui = false
   vb.customize ["modifyvm", :id, "--cpuexecutioncap", "#{CPU_LIMIT}"]
   vb.customize ['modifyvm', :id, "--graphicscontroller", "vmsvga"]
   vb.customize ["modifyvm", :id, "--vram", "4"]
   vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
-  if (name == "master"); 
-    vb.memory = MEMORY_LIMIT_MASTER + 250
-    vb.cpus = CPUS_NUMBER
-  end
-  if (name == "worker"); 
-    vb.memory = MEMORY_LIMIT_WORKER + 250
-    vb.cpus = CPUS_NUMBER
-  end
-  if (name == "nfs"); 
-    vb.memory = MEMORY_LIMIT_NFS + 250
-    vb.cpus = CPUS_NUMBER
+  vb.cpus = CPUS_NUMBER
+  if get_hostmemory(count) != 0
+    vb.memory = get_hostmemory(count)
   end
 end
 
-def set_libvirt(lv, config, name)
+def set_libvirt(lv, config, count)
   lv.nested = true
   lv.volume_cache = "none"
   lv.uri = "qemu+unix:///system"
-  if (name == "master"); 
-    lv.memory = MEMORY_LIMIT_MASTER
-    lv.cpus = CPUS_NUMBER
-  end
-  if (name == "worker"); 
-    lv.memory = MEMORY_LIMIT_WORKER
-    lv.cpus = CPUS_NUMBER
-  end
-  if (name == "nfs"); 
-    lv.memory = MEMORY_LIMIT_NFS
-    lv.cpus = CPUS_NUMBER
+  lv.cpus = CPUS_NUMBER
+  if get_hostmemory(count) != 0
+    lv.memory = get_hostmemory(count)
   end
 end
 
-def set_hyperv(hv, config, name)
-  if (name == "master"); 
-    hv.memory = MEMORY_LIMIT_MASTER
-    hv.cpus = CPUS_NUMBER
-  end
-  if (name == "worker"); 
-    hv.memory = MEMORY_LIMIT_WORKER
-    hv.cpus = CPUS_NUMBER
-  end
-  if (name == "nfs"); 
-    hv.memory = MEMORY_LIMIT_NFS
-    hv.cpus = CPUS_NUMBER
+def set_hyperv(hv, config, count)
+  hv.cpus = CPUS_NUMBER
+  if get_hostmemory(count) != 0
+    hv.memory = get_hostmemory(count)
   end
 end
 
 Vagrant.configure("2") do |config|
-  config.vm.provider "hyperv"
-  config.vm.provider "virtualbox"
-  config.vm.provider "libvirt"
-  config.vbguest.auto_update = false if Vagrant.has_plugin?("vagrant-vbguest")
-
-  count = IP_SHIFT
-  (1..(NUMBER_OF_MASTER_NODES+NUMBER_OF_WORKER_NODES+NUMBER_OF_NFS_NODES)).each do |mid|
-    name = (mid <= NUMBER_OF_MASTER_NODES) ? "master" : ((mid <= (NUMBER_OF_MASTER_NODES+NUMBER_OF_WORKER_NODES)) ? "worker" : "nfs")
-    id   = (mid <= NUMBER_OF_MASTER_NODES) ? mid : ((mid <= (NUMBER_OF_MASTER_NODES+NUMBER_OF_WORKER_NODES)) ? (mid-NUMBER_OF_MASTER_NODES) : (mid-(NUMBER_OF_MASTER_NODES+NUMBER_OF_WORKER_NODES)))
-
-    config.vm.define "#{CLUSTER_PREFIX}-#{name}-#{id}" do |n|
-      n.vm.hostname = "#{CLUSTER_PREFIX}-#{name}-#{id}"
-      ip_addr = "#{PRIVATE_SUBNET}.#{count}"
+  config.vbguest.auto_update = false
+  config.vm.provision "file", source: "~/.ssh/id_rsa.pub", destination: "~/.ssh/imported.pub"
+  config.vm.provision "file", source: ".ssh/id_rsa", destination: "~/.ssh/id_rsa"
+  config.vm.provision "file", source: ".ssh/id_rsa.pub", destination: "~/.ssh/id_rsa.pub"
+  (1..NUMBER_OF_NODES.to_i).to_a.reverse.each do |mid|
+    name = "#{CLUSTER_PREFIX}-node#{mid}"
+    name_full = name + get_hosttype(mid)
+    config.vm.define "#{name_full}" do |n|
+      n.vm.hostname = "#{name}"
+      memory = 
+      ip_addr = increment_ip("#{START_IP}",mid-1)
       n.vm.network :private_network, ip: "#{ip_addr}",  auto_config: true
       if BRIDGE_ENABLE && BRIDGE_ETH.to_s != ''
         n.vm.network "public_network", bridge: BRIDGE_ETH
       end
-      n.vm.synced_folder "scripts/", "/home/vagrant/scripts"
       
-      if (OS_IMAGE == "ubuntu") then n.vm.box = UBUNTU_IMAGE; end
-      if (OS_IMAGE == "centos") then n.vm.box = CENTOS_IMAGE; end
+      if (OS_IMAGE == "ubuntu") 
+        n.vm.box = UBUNTU_IMAGE
+      elsif (OS_IMAGE == "centos")
+        n.vm.box = CENTOS_IMAGE
+      end
 
       # Configure virtualbox provider
       n.vm.provider :virtualbox do |vb, override|
         vb.name = "#{n.vm.hostname}"
-        set_vbox(vb, override, name)
+        set_vbox(vb, override, mid)
       end
 
       # Configure libvirt provider
       n.vm.provider :libvirt do |lv, override|
         lv.host = "#{n.vm.hostname}"
-        set_libvirt(lv, override, name)
+        set_libvirt(lv, override, mid)
       end
 
       # Configure hyperv provider
       n.vm.provider :hyperv do |hv, override|
         hv.vmname = "#{n.vm.hostname}"
-        set_hyperv(hv, override, name)
+        set_hyperv(hv, override, mid)
       end
       
       n.vm.provision "shell", inline: <<-SHELL
-        echo "Disabling firewalld"
-        (systemctl stop firewalld && systemctl disable firewalld) || echo "Firewalld was not found, disabling skipped"
-        echo "Allowing SSH login with password"
-        sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config    
-        systemctl restart sshd.service
-        echo "Disabling IPV6"
-        echo 'Acquire::ForceIPv4 "true";' | sudo tee /etc/apt/apt.conf.d/99force-ipv4
-        echo "net.ipv6.conf.all.disable_ipv6=1" >> /etc/sysctl.conf
-        echo "net.ipv6.conf.default.disable_ipv6=1" >> /etc/sysctl.conf
-        echo "net.ipv6.conf.lo.disable_ipv6=1" >> /etc/sysctl.conf
-        sysctl -p
-        echo "Detecting best mirror"
-        apt update
-        apt install python3-pip -y
-        pip3 install apt-smart
-        apt-smart --auto-change-mirror
-        echo "Updating packages"
-        (apt update -y; apt upgrade -y) || (yum update -y) || (echo "Unsupported OS, can not update packages, exiting" && exit 255)
-        echo "Installing required NFS utils"
-        (apt install -y nfs-common mc) || (yum install -y nfs-utils mc) || (echo "Unsupported OS, can not install required NFS packages, exiting" && exit 255)
+        chmod 400 /home/vagrant/.ssh/id_rsa
+        cat /home/vagrant/.ssh/imported.pub >> /home/vagrant/.ssh/authorized_keys
+        cat /home/vagrant/.ssh/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys
       SHELL
 
-      if (mid == 1);
-        n.vm.network "forwarded_port", guest: 6443, host: 26443, protocol: "tcp"
-        n.vm.network "forwarded_port", guest: 6443, host: 26443, protocol: "udp"
-      end
-
-      if (mid == NUMBER_OF_MASTER_NODES+NUMBER_OF_WORKER_NODES+NUMBER_OF_NFS_NODES);
-        n.vm.provision "shell", preserve_order: true, inline: <<-SHELL
-          echo "Starting K8s cluster setup"
-          (apt install -y sshpass) || (yum install -y sshpass) || (pkg install -y sshpass) || (echo "Unsupported OS, can not install required packages, exiting" && exit 255)
-          echo "K8s cluster setup finished!!"
-          sshpass -p "vagrant" ssh -o StrictHostKeyChecking=no vagrant@"#{PRIVATE_SUBNET}.#{IP_SHIFT}" "./scripts/all-in-one-provisioner.sh"
-        SHELL
+      if mid == 1
+        n.vm.network "forwarded_port", guest: 22, host: 2622, protocol: "tcp"      
         n.vm.network "forwarded_port", guest: 80, host: 80, protocol: "tcp"
         n.vm.network "forwarded_port", guest: 80, host: 80, protocol: "udp"
         n.vm.network "forwarded_port", guest: 443, host: 443, protocol: "tcp"
         n.vm.network "forwarded_port", guest: 443, host: 443, protocol: "udp"
+        n.vm.network "forwarded_port", guest: 6443, host: 26443, protocol: "tcp"
+        n.vm.network "forwarded_port", guest: 6443, host: 26443, protocol: "udp"
+        n.vm.provision "shell", preserve_order: true, inline: <<-SHELL
+          (apt update; apt install ansible -y) || (yum install ansible -y) || (echo "Unsupported OS, can not install required packages, exiting" && exit 255)
+          wget https://raw.githubusercontent.com/smart-cn/inventory_generator/main/inventory_generator.py
+          python3 inventory_generator.py start_ip="#{START_IP}" total="#{NUMBER_OF_NODES}" masters="#{MASTER_NODES}" etcd="#{ETCD_NODES}" workers="#{WORKER_NODES}" nfs="#{NFS_NODES}"
+          ANSIBLE_HOST_KEY_CHECKING=false  ansible all -i hosts.ini --private-key /home/vagrant/.ssh/id_rsa -u vagrant -m ping
+        SHELL
       end
-      
-      count += 1
     end
   end
 end
