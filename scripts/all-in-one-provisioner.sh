@@ -27,7 +27,7 @@ mv -f $HOME/generated-hosts.ini inventory/mycluster/cluster-inventory.ini || ech
 echo "Setuping required additional software"
 ansible-playbook inventory/mycluster/init-provisioning.yaml -i inventory/mycluster/cluster-inventory.ini -u vagrant --private-key $HOME/.ssh/id_rsa
 echo "Deploying cluster using Kubespray and my Dev. inventory"
-ansible-playbook -i cluster-inventory.ini -u vagrant -b -v --private-key=$HOME/.ssh/id_rsa cluster.yml -e "ansible_become_password=$password"
+ansible-playbook -i inventory/mycluster/cluster-inventory.ini -u vagrant -b -v --private-key=$HOME/.ssh/id_rsa cluster.yml -e "ansible_become_password=$password"
 mkdir -p $HOME/.kube/
 echo "Copying kubeconfig to homedir"
 echo $password | sudo -S cp /root/.kube/config $HOME/.kube/
