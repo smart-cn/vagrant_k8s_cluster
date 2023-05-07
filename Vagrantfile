@@ -16,6 +16,7 @@ MEMORY_LIMIT_NFS = 1536
 BRIDGE_ENABLE = false
 BRIDGE_ETH = "eno1"
 START_IP = "172.18.8.10"
+KUBESPRAY_VERSION = "release-2.21"
 
 UBUNTU_IMAGE = "ubuntu/jammy64"
 CENTOS_IMAGE = "generic/centos9s"
@@ -189,10 +190,14 @@ Vagrant.configure("2") do |config|
         n.vm.network "forwarded_port", guest: 6443, host: 26443, protocol: "tcp"
         n.vm.network "forwarded_port", guest: 6443, host: 26443, protocol: "udp"
         n.vm.provision "shell", preserve_order: true, inline: <<-SHELL
-          (apt update; apt install ansible -y) || (yum install ansible -y) || (echo "Unsupported OS, can not install required packages, exiting" && exit 255)
+          echo "Installing python3"
+          (apt update; apt install python3 -y) || (yum install python3 -y) || (echo "Unsupported OS, can not install required packages, exiting" && exit 255)
+          echo "Generating inventory file"
           wget https://raw.githubusercontent.com/smart-cn/inventory_generator/main/inventory_generator.py
-          python3 inventory_generator.py start_ip="#{START_IP}" total="#{NUMBER_OF_NODES}" masters="#{MASTER_NODES}" etcd="#{ETCD_NODES}" workers="#{WORKER_NODES}" nfs="#{NFS_NODES}"
-          ANSIBLE_HOST_KEY_CHECKING=false  ansible all -i hosts.ini --private-key /home/vagrant/.ssh/id_rsa -u vagrant -m ping
+          sudo -u vagrant python3 inventory_generator.py start_ip="#{START_IP}" total="#{NUMBER_OF_NODES}" masters="#{MASTER_NODES}" etcd="#{ETCD_NODES}" workers="#{WORKER_NODES}" nfs="#{NFS_NODES}" file="/home/vagrant/generated-hosts.ini"
+          wget https://raw.githubusercontent.com/smart-cn/vagrant_k8s_cluster/master/scripts/all-in-one-provisioner.sh
+          git checkout ansible_provision
+		  sudo -u vagrant bash scripts/all-in-one-provisioner.sh
         SHELL
       end
     end
