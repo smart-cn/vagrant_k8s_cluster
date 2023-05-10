@@ -67,13 +67,15 @@ def get_hosttype(count)
     else
       type += ",worker"
     end
-  elsif compare_numbers("#{NFS_NODES}", count)
+  end
+  if compare_numbers("#{NFS_NODES}", count)
     if type == " " 
       type += " (nfs"
     else
       type += ",nfs"
     end
-  elsif compare_numbers("#{ETCD_NODES}", count)
+  end
+  if compare_numbers("#{ETCD_NODES}", count)
     if type == " " 
       type += " (etcd"
     else
@@ -196,7 +198,7 @@ Vagrant.configure("2") do |config|
           wget https://raw.githubusercontent.com/smart-cn/inventory_generator/main/inventory_generator.py
           sudo -u vagrant python3 inventory_generator.py start_ip="#{START_IP}" total="#{NUMBER_OF_NODES}" masters="#{MASTER_NODES}" etcd="#{ETCD_NODES}" workers="#{WORKER_NODES}" nfs="#{NFS_NODES}" file="/home/vagrant/generated-hosts.ini"
           wget https://raw.githubusercontent.com/smart-cn/vagrant_k8s_cluster/ansible_provision/scripts/all-in-one-provisioner.sh
-		  sudo -u vagrant bash all-in-one-provisioner.sh
+          sudo -u vagrant bash all-in-one-provisioner.sh
         SHELL
       end
     end
