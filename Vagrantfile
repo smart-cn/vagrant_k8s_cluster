@@ -195,9 +195,8 @@ Vagrant.configure("2") do |config|
           echo "Generating inventory file"
           wget https://raw.githubusercontent.com/smart-cn/inventory_generator/main/inventory_generator.py
           sudo -u vagrant python3 inventory_generator.py start_ip="#{START_IP}" total="#{NUMBER_OF_NODES}" masters="#{MASTER_NODES}" etcd="#{ETCD_NODES}" workers="#{WORKER_NODES}" nfs="#{NFS_NODES}" file="/home/vagrant/generated-hosts.ini"
-          wget https://raw.githubusercontent.com/smart-cn/vagrant_k8s_cluster/master/scripts/all-in-one-provisioner.sh
-          git checkout ansible_provision
-		  sudo -u vagrant bash scripts/all-in-one-provisioner.sh
+          wget https://raw.githubusercontent.com/smart-cn/vagrant_k8s_cluster/ansible_provision/scripts/all-in-one-provisioner.sh
+		  sudo -u vagrant bash all-in-one-provisioner.sh
         SHELL
       end
     end
